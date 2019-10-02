@@ -2,7 +2,7 @@ use tokio::{clock, timer};
 use std::time::Duration;
 use std::ops::RangeInclusive;
 
-/// Nice and heavy and reliable.
+/// A pendulum. Nice, heavy and reliable.
 ///
 ///  |
 ///  |
@@ -54,15 +54,17 @@ async fn pendulum_museum(range: RangeInclusive<isize>, phase_offset: Duration) {
     }
 }
 
-#[tokio::main(multi_thread)]
-pub async fn main() {
+///  _-_
+/// (◎ ◎)  Stare deep into my eyes.
+///  \_/
+#[tokio::main]
+async fn main() {
     let range = -20..=10;
     let phase_offset = Duration::from_millis(1000 / range.size_hint().0 as u64 - 1);
     println!("range = {:?}", range);
     println!("phase_offset = {:?}", phase_offset);
-    println!();
-
     pendulum_museum(range, phase_offset).await;
+
     // TODO: I'd love to avoid this.
     loop {}
 }
