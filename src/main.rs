@@ -171,11 +171,11 @@ async fn main() {
 
 
     pendulum_museum1(Duration::from_millis(750),
-                     6,
+                     75,
                      Duration::from_millis(15)).await;
-    pendulum_museum2(Duration::from_millis(1500),
-                     0..=3,
-                     Duration::from_millis(125)).await;
+    pendulum_museum2(Duration::from_millis(1492),
+                     0..=75,
+                     Duration::from_millis(43)).await;
 
 
     // Exhibit 4: Leaving the building.
