@@ -1,12 +1,11 @@
-use std::time::{Instant, Duration};
+use std::time::Duration;
 use std::ops::RangeInclusive;
 
+mod sleep;
+use crate::sleep::sleep;
+
 mod executor;
-
-async fn delay(utill: Instant) {
-    // TODO
-}
-
+use crate::executor::{spawn, run};
 
 /// A pendulum. Nice, heavy and reliable.
 ///
@@ -16,7 +15,7 @@ async fn delay(utill: Instant) {
 /// ( )
 ///
 async fn pendulum(period: Duration) {
-    delay(Instant::now() + period).await;
+    sleep(period).await;
 }
 
 /// Tick, tock goes the clock.
@@ -62,9 +61,9 @@ async fn pendulum_museum1(
 {
     // 0 is broken :(
     for n in 1..=(count/2) {
-        delay(Instant::now() + separation).await;
-        pendulum_clock(period, n as isize);
-        pendulum_clock(period, -(n as isize));
+        sleep(separation).await;
+        spawn(pendulum_clock(period, n as isize));
+        spawn(pendulum_clock(period, -(n as isize)));
     }
 }
 
@@ -84,13 +83,25 @@ async fn pendulum_museum2(
 {
     // I've been told they fixed 0.
     for i in range {
-        delay(Instant::now() + separation).await;
-        pendulum_clock(period, i);
+        sleep(separation).await;
+        spawn(pendulum_clock(period, i));
     }
 }
 
 // TODO: Replace with updated main from below.
-fn main() {}
+fn main() {
+    run(async {
+        let period = Duration::from_secs(1);
+        let count = 6;
+        let separation = Duration::from_millis(333);
+        println!("period = {:?}", period);
+        println!("count = {:?}", count);
+        println!("separation = {:?}", separation);
+        pendulum_museum1(period, count, separation).await;
+    });
+
+    loop {}
+}
 
 /////  _-_
 ///// (◎ ◎)  Stare deep into my eyes.
