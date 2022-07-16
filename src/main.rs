@@ -1,10 +1,7 @@
 use std::time::{Instant, Duration};
 use std::ops::RangeInclusive;
 
-use std::ptr;
-use std::pin::Pin;
-use std::future::Future;
-use std::task::{Context, Waker, RawWaker, RawWakerVTable};
+mod executor;
 
 async fn delay(utill: Instant) {
     // TODO
@@ -92,37 +89,8 @@ async fn pendulum_museum2(
     }
 }
 
-static RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
-    |data| RawWaker::new(ptr::null(), &RAW_WAKER_VTABLE),
-    |data| {},
-    |data| {},
-    |data| {},
-);
-
-fn main() {
-    let mut task = async {
-        let period = Duration::from_secs(1);
-        let count = 6;
-        let separation = Duration::from_millis(333);
-        println!("period = {:?}", period);
-        println!("count = {:?}", count);
-        println!("separation = {:?}", separation);
-        pendulum_museum1(period, count, separation).await;
-    };
-
-    unsafe {
-        let raw_waker = RawWaker::new(ptr::null(), &RAW_WAKER_VTABLE);
-        dbg!(&raw_waker);
-        let waker = Waker::from_raw(raw_waker);
-        dbg!(&waker);
-        let mut context = Context::from_waker(&waker);
-        dbg!(&context);
-        dbg!(Pin::new_unchecked(&mut task).poll(&mut context));
-    }
-
-
-    loop {}
-}
+// TODO: Replace with updated main from below.
+fn main() {}
 
 /////  _-_
 ///// (◎ ◎)  Stare deep into my eyes.
