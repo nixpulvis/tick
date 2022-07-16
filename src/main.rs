@@ -1,6 +1,15 @@
-use tokio::{clock, timer};
-use std::time::Duration;
+use std::time::{Instant, Duration};
 use std::ops::RangeInclusive;
+
+use std::ptr;
+use std::pin::Pin;
+use std::future::Future;
+use std::task::{Context, Waker, RawWaker, RawWakerVTable};
+
+async fn delay(utill: Instant) {
+    // TODO
+}
+
 
 /// A pendulum. Nice, heavy and reliable.
 ///
@@ -10,7 +19,7 @@ use std::ops::RangeInclusive;
 /// ( )
 ///
 async fn pendulum(period: Duration) {
-    tokio::timer::delay(clock::now() + period).await;
+    delay(Instant::now() + period).await;
 }
 
 /// Tick, tock goes the clock.
@@ -56,9 +65,9 @@ async fn pendulum_museum1(
 {
     // 0 is broken :(
     for n in 1..=(count/2) {
-        timer::delay(clock::now() + separation).await;
-        tokio::spawn(pendulum_clock(period, n as isize));
-        tokio::spawn(pendulum_clock(period, -(n as isize)));
+        delay(Instant::now() + separation).await;
+        pendulum_clock(period, n as isize);
+        pendulum_clock(period, -(n as isize));
     }
 }
 
@@ -74,117 +83,149 @@ async fn pendulum_museum1(
 async fn pendulum_museum2(
     period: Duration,
     range: RangeInclusive<isize>,
-    delay: Duration)
+    separation: Duration)
 {
     // I've been told they fixed 0.
     for i in range {
-        timer::delay(clock::now() + delay).await;
-        tokio::spawn(pendulum_clock(period, i));
+        delay(Instant::now() + separation).await;
+        pendulum_clock(period, i);
     }
 }
 
-///  _-_
-/// (◎ ◎)  Stare deep into my eyes.
-///  \_/
-#[tokio::main]
-async fn main() {
+static RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+    |data| RawWaker::new(ptr::null(), &RAW_WAKER_VTABLE),
+    |data| {},
+    |data| {},
+    |data| {},
+);
 
-    // Exbibit 1: Sitting and thinking.
+fn main() {
+    let mut task = async {
+        let period = Duration::from_secs(1);
+        let count = 6;
+        let separation = Duration::from_millis(333);
+        println!("period = {:?}", period);
+        println!("count = {:?}", count);
+        println!("separation = {:?}", separation);
+        pendulum_museum1(period, count, separation).await;
+    };
 
-    // Uniform is:
-    // - period = separation * count / 2
-    // - separation = period / 2 * count
-    //
-    // It's nice because they all tick, and tock together.
+    unsafe {
+        let raw_waker = RawWaker::new(ptr::null(), &RAW_WAKER_VTABLE);
+        dbg!(&raw_waker);
+        let waker = Waker::from_raw(raw_waker);
+        dbg!(&waker);
+        let mut context = Context::from_waker(&waker);
+        dbg!(&context);
+        dbg!(Pin::new_unchecked(&mut task).poll(&mut context));
+    }
 
-    let period = Duration::from_secs(1);
-    let count = 6;
-    let separation = Duration::from_millis(333);
-    println!("period = {:?}", period);
-    println!("count = {:?}", count);
-    println!("separation = {:?}", separation);
-    pendulum_museum1(period, count, separation).await;
 
-    // TODO: I'd love to avoid this, but it's nice to avoid commenting out the
-    // rest of the code below :P
     loop {}
-
-    let period = Duration::from_millis(250);
-    let count = 50;
-    let separation = Duration::from_millis(10);
-    println!("period = {:?}", period);
-    println!("count = {:?}", count);
-    println!("separation = {:?}", separation);
-    pendulum_museum1(period, count, separation).await;
-
-    // Under is:
-    // - period > separation * count / 2
-    let period = Duration::from_secs(1);
-    let count = 20;
-    let separation = Duration::from_millis(20);
-    println!("period = {:?}", period);
-    println!("count = {:?}", count);
-    println!("separation = {:?}", separation);
-    pendulum_museum1(period, count, separation).await;
-
-    // Over
-    // - period < separation * count / 2
-    let period = Duration::from_secs(1);
-    let count = 10;
-    let separation = Duration::from_millis(500);
-    println!("period = {:?}", period);
-    println!("count = {:?}", count);
-    println!("separation = {:?}", separation);
-    pendulum_museum1(period, count, separation).await;
-
-
-    // Exbibit 2: Running down the room.
-
-
-    // Uniform here is defined by `delay`.
-    let period = Duration::from_millis(500);
-    let range = 0..=6;
-    let delay = period / range.size_hint().0 as u32;
-    println!("period = {:?}", range);
-    println!("range = {:?}", range);
-    println!("delay = {:?}", delay);
-    pendulum_museum2(period, range, delay).await;
-
-    // Ran too fast.
-    let period = Duration::from_millis(333);
-    let range = -3..=3;
-    let delay = Duration::from_millis(20);
-    println!("range = {:?}", range);
-    println!("delay = {:?}", delay);
-    pendulum_museum2(period, range, delay).await;
-
-    // Ran too slow.
-    let period = Duration::from_millis(333);
-    let range = -3..=3;
-    let delay = Duration::from_millis(125);
-    println!("range = {:?}", range);
-    println!("delay = {:?}", delay);
-    pendulum_museum2(period, range, delay).await;
-
-
-    // Exbibit 3: The bench next to the bathroom.
-
-
-    pendulum_museum1(Duration::from_millis(750),
-                     75,
-                     Duration::from_millis(15)).await;
-    pendulum_museum2(Duration::from_millis(1492),
-                     0..=75,
-                     Duration::from_millis(43)).await;
-
-
-    // Exhibit 4: Leaving the building.
-
-
-    pendulum_museum1(Duration::from_secs(2),
-                     2,
-                     Duration::from_secs(0)).await;
-    pendulum_museum2(Duration::from_secs(3),
-                     0..=1,
-                     Duration::from_millis(125)).await;
 }
+
+/////  _-_
+///// (◎ ◎)  Stare deep into my eyes.
+/////  \_/
+//#[tokio::main]
+//async fn old_main() {
+
+//    // Exbibit 1: Sitting and thinking.
+
+//    // Uniform is:
+//    // - period = separation * count / 2
+//    // - separation = period / 2 * count
+//    //
+//    // It's nice because they all tick, and tock together.
+
+//    let period = Duration::from_secs(1);
+//    let count = 6;
+//    let separation = Duration::from_millis(333);
+//    println!("period = {:?}", period);
+//    println!("count = {:?}", count);
+//    println!("separation = {:?}", separation);
+//    pendulum_museum1(period, count, separation).await;
+
+//    // TODO: I'd love to avoid this, but it's nice to avoid commenting out the
+//    // rest of the code below :P
+//    loop {}
+
+//    let period = Duration::from_millis(250);
+//    let count = 50;
+//    let separation = Duration::from_millis(10);
+//    println!("period = {:?}", period);
+//    println!("count = {:?}", count);
+//    println!("separation = {:?}", separation);
+//    pendulum_museum1(period, count, separation).await;
+
+//    // Under is:
+//    // - period > separation * count / 2
+//    let period = Duration::from_secs(1);
+//    let count = 20;
+//    let separation = Duration::from_millis(20);
+//    println!("period = {:?}", period);
+//    println!("count = {:?}", count);
+//    println!("separation = {:?}", separation);
+//    pendulum_museum1(period, count, separation).await;
+
+//    // Over
+//    // - period < separation * count / 2
+//    let period = Duration::from_secs(1);
+//    let count = 10;
+//    let separation = Duration::from_millis(500);
+//    println!("period = {:?}", period);
+//    println!("count = {:?}", count);
+//    println!("separation = {:?}", separation);
+//    pendulum_museum1(period, count, separation).await;
+
+
+//    // Exbibit 2: Running down the room.
+
+
+//    // Uniform here is defined by `delay`.
+//    let period = Duration::from_millis(500);
+//    let range = 0..=6;
+//    let delay = period / range.size_hint().0 as u32;
+//    println!("period = {:?}", range);
+//    println!("range = {:?}", range);
+//    println!("delay = {:?}", delay);
+//    pendulum_museum2(period, range, delay).await;
+
+//    // Ran too fast.
+//    let period = Duration::from_millis(333);
+//    let range = -3..=3;
+//    let delay = Duration::from_millis(20);
+//    println!("range = {:?}", range);
+//    println!("delay = {:?}", delay);
+//    pendulum_museum2(period, range, delay).await;
+
+//    // Ran too slow.
+//    let period = Duration::from_millis(333);
+//    let range = -3..=3;
+//    let delay = Duration::from_millis(125);
+//    println!("range = {:?}", range);
+//    println!("delay = {:?}", delay);
+//    pendulum_museum2(period, range, delay).await;
+
+
+//    // Exbibit 3: The bench next to the bathroom.
+
+
+//    pendulum_museum1(Duration::from_millis(750),
+//                     75,
+//                     Duration::from_millis(15)).await;
+//    pendulum_museum2(Duration::from_millis(1492),
+//                     0..=75,
+//                     Duration::from_millis(43)).await;
+
+
+//    // Exhibit 4: Leaving the building.
+
+
+//    pendulum_museum1(Duration::from_secs(2),
+//                     2,
+//                     Duration::from_secs(0)).await;
+//    pendulum_museum2(Duration::from_secs(3),
+//                     0..=1,
+//                     Duration::from_millis(125)).await;
+//}
